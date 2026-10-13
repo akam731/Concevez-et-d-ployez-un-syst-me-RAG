@@ -14,7 +14,7 @@ Le projet est en cours de démarrage. Le système RAG et l'API ne sont pas encor
 ## Étapes du projet
 
 - [X] Étape 1 - Configurez l’environnement
-- [ ] Étape 2 - Effectuez le pré-processing des données Open Agenda
+- [X] Étape 2 - Effectuez le pré-processing des données Open Agenda
 - [ ] Étape 3 - Implémentez la base de données vectorielle avec Faiss
 - [ ] Étape 4 - Intégrez LanChain pour le système RAG 
 - [ ] Étape 5 - Créez une API pour exposer le système RAG
@@ -24,14 +24,27 @@ Le projet est en cours de démarrage. Le système RAG et l'API ne sont pas encor
 
 ```text
 .
-├── .venv/            # environnement virtuel
-├── .env              # variables d'environnement locales
-├── .env.demo         # exemple de variables d'environnement
-├── .gitignore        # fichiers exclus de Git
-├── docs              # dossier contenant les documentations du projet
-├── pyproject.toml    # configuration et dépendances Python
-├── README.md         # documentation du projet
-└── uv.lock           # versions verrouillées des dépendances
+├── .venv/                         # Environnement virtuel Python
+├── .env                           # Variables d'environnement locales
+├── .env.demo                      # Exemple de variables d'environnement
+├── .gitignore                     # Fichiers exclus de Git
+│
+├── 1-PreProcessing/               # Extraction, nettoyage et vectorisation
+│   ├── 1-extract_events.ipynb     # Récupération et nettoyage des événements
+│   └── 2-embedding.ipynb          # Génération des embeddings
+│
+├── 2-DataBase/                    # Création de la base vectorielle
+│   └── 3-create_database.ipynb    # Création et sauvegarde de l'index FAISS
+│
+├── datas/                         # Données du projet
+│   ├── events.csv                 # Événements bruts récupérés depuis OpenAgenda
+│   ├── events_clean.csv           # Événements filtrés et nettoyés
+│   └── events_embeddings.npy      # Vecteurs générés
+│
+├── docs/                          # Documentation du projet
+├── pyproject.toml                 # Configuration et dépendances Python
+├── README.md                      # Documentation principale du projet
+└── uv.lock                        # Versions verrouillées des dépendances
 ```
 
 ## Lancer le projet
