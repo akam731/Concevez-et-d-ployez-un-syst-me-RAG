@@ -58,3 +58,20 @@ uv sync
 ```
 
 Cette commande crée l'environnement virtuel et synchronise les dépendances du projet.
+
+## Tests et couverture
+
+Depuis la racine du projet, lancer les tests et générer le rapport de couverture HTML :
+
+```powershell
+uv run pytest
+```
+
+Ouvrir le rapport de couverture sous Windows :
+
+```powershell
+Start-Process .\htmlcov\index.html
+```
+
+Les tests sont dans `tests/unit/`. Les appels à OpenAgenda et Mistral sont simulés.
+Le rapport `htmlcov/index.html` mesure la couverture du code Python dans `utils/`.
