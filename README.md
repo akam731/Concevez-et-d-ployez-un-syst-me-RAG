@@ -15,8 +15,8 @@ Le projet est en cours de démarrage. Le système RAG et l'API ne sont pas encor
 
 - [X] Étape 1 - Configurez l’environnement
 - [X] Étape 2 - Effectuez le pré-processing des données Open Agenda
-- [ ] Étape 3 - Implémentez la base de données vectorielle avec Faiss
-- [ ] Étape 4 - Intégrez LanChain pour le système RAG 
+- [X] Étape 3 - Implémentez la base de données vectorielle avec Faiss
+- [X] Étape 4 - Intégrez LanChain pour le système RAG 
 - [ ] Étape 5 - Créez une API pour exposer le système RAG
 - [ ] Étape 6 - Conteneurisez, déployez localement et préparez votre démonstration
 
@@ -24,24 +24,38 @@ Le projet est en cours de démarrage. Le système RAG et l'API ne sont pas encor
 
 ```text
 .
-├── .venv/                         # Environnement virtuel Python
-├── .env                           # Variables d'environnement locales
+├── .env                           # Clé API et variables locales
 ├── .env.demo                      # Exemple de variables d'environnement
 ├── .gitignore                     # Fichiers exclus de Git
-│
-├── 1-PreProcessing/               # Extraction, nettoyage et vectorisation
-│   ├── 1-extract_events.ipynb     # Récupération et nettoyage des événements
+├── .venv/                         # Environnement virtuel UV
+├── 1-PreProcessing/               
+│   ├── 1-extract_events.ipynb     # Extraction et nettoyage des événements
 │   └── 2-embedding.ipynb          # Génération des embeddings
-│
-├── 2-DataBase/                    # Création de la base vectorielle
-│   └── 3-create_database.ipynb    # Création et sauvegarde de l'index FAISS
-│
-├── datas/                         # Données du projet
-│   ├── events.csv                 # Événements bruts récupérés depuis OpenAgenda
+├── 2-DataBase/                    # Notebook de création de la base FAISS
+│   └── 3-create_database.ipynb
+├── app.py                         # Interface Streamlit du RAG
+├── datas/                         # Données générées localement
+│   ├── events.csv                 # Événements bruts OpenAgenda
 │   ├── events_clean.csv           # Événements filtrés et nettoyés
-│   └── events_embeddings.npy      # Vecteurs générés
-│
-├── docs/                          # Documentation du projet
+│   └── events_embeddings.npy      # Vecteurs des événements
+├── docs/                          # Documentations du projet
+│   └── Fiche auto évaluation.pdf  
+├── main.py                        # Point d'entrée de l'API FastAPI
+├── processing/                    
+│   ├── create_database.py         # Création de la base de données FAISS
+│   ├── embedding.py               # Génération des embeddings
+│   ├── extract_events.py          # Récupération des événements
+│   └── preprocessing.py           # Class regroupant tous les processus
+├── tests/
+│   └── unit/                      # Tests unitaires
+│       ├── test_database.py
+│       └── test_preprocessing.py
+├── utils/                         # Fonctions partagés
+│   ├── database.py
+│   ├── preprocessing.py
+│   ├── rag.py                    
+│   ├── settings.py                # Paramètres du projet
+│   └── system.md                  # Prompt System du chat
 ├── pyproject.toml                 # Configuration et dépendances Python
 ├── README.md                      # Documentation principale du projet
 └── uv.lock                        # Versions verrouillées des dépendances
@@ -56,8 +70,11 @@ Avec `uv` installé, exécutez à la racine du projet :
 ```bash
 uv sync
 ```
+```bash
+uv run streamlit run app.py
+```
 
-Cette commande crée l'environnement virtuel et synchronise les dépendances du projet.
+La première commande crée l'environnement virtuel et synchronise les dépendances du projet.
 
 ## Tests et couverture
 
