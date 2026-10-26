@@ -3,20 +3,20 @@
 
 ## Objectif
 
-Créer un assistant capable de répondre aux questions sur des événements culturels récents à partir des données d'Open Agenda. Le système utilisera une recherche vectorielle avec Faiss, un RAG avec LangChain et un modèle Mistral. Une API REST permettra de poser des questions à l'assistant.
+Créer un assistant capable de répondre aux questions sur des événements culturels récents à partir des données d'Open Agenda. Le système utilise une recherche vectorielle avec Faiss, un RAG avec LangChain et un modèle Mistral. Une API REST permet de poser des questions à l'assistant.
 
 Source des données : [événements publics OpenAgenda](https://public.opendatasoft.com/explore/assets/evenements-publics-openagenda/view/).
 
 ## État du projet
 
-Le projet est en cours de démarrage. Le système RAG et l'API ne sont pas encore disponibles.
+Le système RAG, la base FAISS et le chat Streamlit sont disponibles. L'application FastAPI se trouve dans `main.py`.
 
 ## Étapes du projet
 
 - [X] Étape 1 - Configurez l’environnement
 - [X] Étape 2 - Effectuez le pré-processing des données Open Agenda
-- [ ] Étape 3 - Implémentez la base de données vectorielle avec Faiss
-- [ ] Étape 4 - Intégrez LanChain pour le système RAG 
+- [X] Étape 3 - Implémentez la base de données vectorielle avec Faiss
+- [X] Étape 4 - Intégrez LangChain pour le système RAG
 - [ ] Étape 5 - Créez une API pour exposer le système RAG
 - [ ] Étape 6 - Conteneurisez, déployez localement et préparez votre démonstration
 
@@ -28,6 +28,9 @@ Le projet est en cours de démarrage. Le système RAG et l'API ne sont pas encor
 ├── .env                           # Variables d'environnement locales
 ├── .env.demo                      # Exemple de variables d'environnement
 ├── .gitignore                     # Fichiers exclus de Git
+│
+├── app.py                         # Interface de discussion Streamlit
+├── main.py                        # Application API FastAPI
 │
 ├── 1-PreProcessing/               # Extraction, nettoyage et vectorisation
 │   ├── 1-extract_events.ipynb     # Récupération et nettoyage des événements
@@ -49,15 +52,41 @@ Le projet est en cours de démarrage. Le système RAG et l'API ne sont pas encor
 
 ## Lancer le projet
 
-Le fichier `pyproject.toml` définit actuellement un environnement Python 3.14 ou plus récent. Les dépendances et les commandes de lancement seront ajoutées au fur et à mesure du développement.
+### Installer les dépendances
 
-Avec `uv` installé, exécutez à la racine du projet :
+Le projet requiert Python 3.14 ou plus récent et `uv`. Depuis la racine du projet :
 
 ```bash
 uv sync
+cp .env.demo .env
 ```
 
-Cette commande crée l'environnement virtuel et synchronise les dépendances du projet.
+Remplacez `[API_KEY]` dans `.env` par votre clé API Mistral. L'index FAISS utilisé par le chat se trouve dans `datas/faiss_events/`.
+
+### Lancer le chat
+
+```bash
+uv run streamlit run app.py
+```
+
+Ouvrez ensuite `http://localhost:8501` dans votre navigateur.
+
+### Lancer l'API REST
+
+Dans un autre terminal, depuis la racine du projet :
+
+```bash
+uv run uvicorn main:app --reload
+```
+
+L'API est accessible sur `http://127.0.0.1:8000`. Ses routes sont :
+
+| Méthode | Route | Description |
+| --- | --- | --- |
+| `POST` | `/ask` | Pose une question et retourne la réponse ainsi que les événements retrouvés. |
+| `POST` | `/rebuild` | Reconstruit l'index FAISS à partir des données et des embeddings préparés. |
+
+La documentation interactive de l'API est disponible sur `http://127.0.0.1:8000/docs`.
 
 ## Tests et couverture
 
@@ -70,8 +99,8 @@ uv run pytest
 Ouvrir le rapport de couverture sous Windows :
 
 ```powershell
-Start-Process .\htmlcov\index.html
+Start-Process .\tests\htmlcov\index.html
 ```
 
 Les tests sont dans `tests/unit/`. Les appels à OpenAgenda et Mistral sont simulés.
-Le rapport `htmlcov/index.html` mesure la couverture du code Python dans `utils/`.
+Le rapport `tests/htmlcov/index.html` mesure la couverture du code Python dans `utils/`.

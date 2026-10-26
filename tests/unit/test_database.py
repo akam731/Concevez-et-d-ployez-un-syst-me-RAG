@@ -1,5 +1,3 @@
-"""Tests de création de la base FAISS, sans réseau ni clé API."""
-
 import json
 
 import numpy as np
