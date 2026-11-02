@@ -1,0 +1,58 @@
+@baseUrl = http://127.0.0.1:8000
+
+### Poser une question au RAG
+POST {{baseUrl}}/ask
+Content-Type: application/json
+
+{
+  "question": "Quels événements culturels sont proposés à Paris ?"
+}
+
+### Demander le prix d'un événement
+POST {{baseUrl}}/ask
+Content-Type: application/json
+
+{
+  "question": "Combien coûte l'entrée au ciné-concert Vive Kaprálová ?"
+}
+
+### Demander le lieu d'une exposition
+POST {{baseUrl}}/ask
+Content-Type: application/json
+
+{
+  "question": "Où se tient l'exposition Amazônia. Créations et futurs autochtones ?"
+}
+
+### Demander la date d'un concert
+POST {{baseUrl}}/ask
+Content-Type: application/json
+
+{
+  "question": "Quand a lieu le concert Coeur Canari de Jann Halexander ?"
+}
+
+### Demander les conditions d'un atelier
+POST {{baseUrl}}/ask
+Content-Type: application/json
+
+{
+  "question": "L'atelier scolaire La fortification bastionnée est-il gratuit et faut-il s'inscrire ?"
+}
+
+### Demander les différents tarifs d'un récital
+POST {{baseUrl}}/ask
+Content-Type: application/json
+
+{
+  "question": "Quels sont les tarifs du récital Hommage à Guru M. K. Saroja ?"
+}
+
+### Reconstruire la base vectorielle
+POST {{baseUrl}}/rebuild
+
+### Vérifier l'état de l'API
+GET {{baseUrl}}/health
+
+### Consulter les métadonnées de l'API
+GET {{baseUrl}}/metadata

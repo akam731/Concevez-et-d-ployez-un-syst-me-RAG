@@ -14,3 +14,11 @@ class PreProcessing:
     def create_database(self):
         """Construit et sauvegarde la base de données FAISS"""
         return create_database.main()
+
+    def pre_processing(self):
+        """
+        Réalise tout le préprocessing d'un coup
+        """
+        self.extract_events()
+        self.generate_embeddings()
+        return self.create_database()

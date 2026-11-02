@@ -1,7 +1,7 @@
 [project]
 name = "concevez-et-d-ployez-un-syst-me-rag"
 version = "0.1.0"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "beautifulsoup4>=4.15.0",
     "faiss-cpu>=1.15.1",
@@ -14,6 +14,7 @@ dependencies = [
     "numpy>=2.0",
     "pandas>=3.0.6",
     "python-dotenv>=1.2.4",
+    "ragas>=0.4.3",
     "requests>=2.34.2",
     "scikit-learn>=1.9.1",
     "seaborn>=0.13.2",
@@ -24,6 +25,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "langchain-google-vertexai>=3.2.5",
     "pytest>=8.4",
     "pytest-cov>=7.0",
 ]
@@ -31,7 +33,7 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "--cov=utils --cov-report=term-missing --cov-report=html --cov-fail-under=90"
+addopts = "--import-mode=importlib --cov=utils --cov-report=term-missing --cov-report=html --cov-fail-under=90"
 markers = [
     "unit: tests unitaires des fonctions de préparation",
     "functional: tests du parcours de préparation avec fichiers temporaires",

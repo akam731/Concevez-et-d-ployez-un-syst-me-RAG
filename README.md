@@ -17,7 +17,7 @@ Le système RAG, la base FAISS et le chat Streamlit sont disponibles. L'applicat
 - [X] Étape 2 - Effectuez le pré-processing des données Open Agenda
 - [X] Étape 3 - Implémentez la base de données vectorielle avec Faiss
 - [X] Étape 4 - Intégrez LangChain pour le système RAG
-- [ ] Étape 5 - Créez une API pour exposer le système RAG
+- [X] Étape 5 - Créez une API pour exposer le système RAG
 - [ ] Étape 6 - Conteneurisez, déployez localement et préparez votre démonstration
 
 ## Arborescence
@@ -83,8 +83,12 @@ L'API est accessible sur `http://127.0.0.1:8000`. Ses routes sont :
 
 | Méthode | Route | Description |
 | --- | --- | --- |
-| `POST` | `/ask` | Pose une question et retourne la réponse ainsi que les événements retrouvés. |
-| `POST` | `/rebuild` | Reconstruit l'index FAISS à partir des données et des embeddings préparés. |
+| `POST` | `/ask` | Reçoit `{"question": "..."}` et renvoie la réponse du RAG et les événements retrouvés. |
+| `POST` | `/rebuild` | Actualise les événements, régénère les embeddings et reconstruit l'index FAISS. |
+| `GET` | `/docs` | Documentation interactive Swagger. |
+| `GET` | `/redoc` | Documentation interactive alternative. |
+| `GET, POST` | `/health` | État de santé de l'API. |
+| `GET, POST` | `/metadata` | Metadatas de l'API. |
 
 La documentation interactive de l'API est disponible sur `http://127.0.0.1:8000/docs`.
 
@@ -92,15 +96,15 @@ La documentation interactive de l'API est disponible sur `http://127.0.0.1:8000/
 
 Depuis la racine du projet, lancer les tests et générer le rapport de couverture HTML :
 
-```powershell
-uv run pytest
+```bash
+uv run pytest -v
 ```
 
 Ouvrir le rapport de couverture sous Windows :
 
-```powershell
+```bash
 Start-Process .\tests\htmlcov\index.html
 ```
 
-Les tests sont dans `tests/unit/`. Les appels à OpenAgenda et Mistral sont simulés.
+Les tests unitaires sont dans `tests/unit/` et les tests HTTP de l'API dans `tests/functional/`. Les appels à OpenAgenda et Mistral sont simulés.
 Le rapport `tests/htmlcov/index.html` mesure la couverture du code Python dans `utils/`.
