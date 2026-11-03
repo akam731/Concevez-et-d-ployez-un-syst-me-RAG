@@ -61,7 +61,7 @@ uv sync
 cp .env.demo .env
 ```
 
-Remplacez `[API_KEY]` dans `.env` par votre clé API Mistral. L'index FAISS utilisé par le chat se trouve dans `datas/faiss_events/`.
+Remplacez `[API_KEY]` dans `MISTRAL_API` par votre clé API Mistral et `[INTERNAL_API_KEY]` par une clé interne secrète. Cette dernière protège les routes `POST /ask` et `POST /rebuild`. L'index FAISS utilisé par le chat se trouve dans `datas/faiss_events/`.
 
 ### Lancer le chat
 
@@ -83,14 +83,15 @@ L'API est accessible sur `http://127.0.0.1:8000`. Ses routes sont :
 
 | Méthode | Route | Description |
 | --- | --- | --- |
-| `POST` | `/ask` | Reçoit `{"question": "..."}` et renvoie la réponse du RAG et les événements retrouvés. |
-| `POST` | `/rebuild` | Actualise les événements, régénère les embeddings et reconstruit l'index FAISS. |
+| `POST` | `/ask` | Reçoit `{"question": "..."}` et renvoie la réponse du RAG et les événements retrouvés. Requiert l'en-tête `X-API-Key`. |
+| `POST` | `/rebuild` | Actualise les événements, régénère les embeddings et reconstruit l'index FAISS. Requiert l'en-tête `X-API-Key`. |
 | `GET` | `/docs` | Documentation interactive Swagger. |
 | `GET` | `/redoc` | Documentation interactive alternative. |
 | `GET, POST` | `/health` | État de santé de l'API. |
 | `GET, POST` | `/metadata` | Metadatas de l'API. |
 
 La documentation interactive de l'API est disponible sur `http://127.0.0.1:8000/docs`.
+Pour appeler `/ask` ou `/rebuild`, envoyez la valeur de `INTERNAL_API_KEY` dans l'en-tête `X-API-Key`. Dans Swagger, cliquez sur **Authorize** et renseignez cette clé.
 
 ## Tests et couverture
 

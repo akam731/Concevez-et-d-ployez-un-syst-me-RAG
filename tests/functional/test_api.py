@@ -10,6 +10,13 @@ import main
 
 
 pytestmark = pytest.mark.functional
+INTERNAL_API_KEY = "test-internal-key"
+API_HEADERS = {"X-API-Key": INTERNAL_API_KEY}
+
+
+@pytest.fixture(autouse=True)
+def configure_internal_api_key(monkeypatch):
+    monkeypatch.setenv("INTERNAL_API_KEY", INTERNAL_API_KEY)
 
 
 def test_rebuild_post(monkeypatch):
@@ -18,10 +25,25 @@ def test_rebuild_post(monkeypatch):
     monkeypatch.setattr(main.PreProcessing, "pre_processing", rebuild)
     monkeypatch.setattr(main, "load_resources", Mock())
 
-    response = TestClient(main.app).post("/rebuild")
+    response = TestClient(main.app).post("/rebuild", headers=API_HEADERS)
 
     assert response.status_code == 200
     rebuild.assert_called_once_with()
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [{}, {"X-API-Key": "invalid-key"}],
+    ids=["missing-key", "invalid-key"],
+)
+def test_rebuild_rejects_missing_or_invalid_api_key(monkeypatch, headers):
+    rebuild = Mock(return_value=SimpleNamespace(ntotal=3))
+    monkeypatch.setattr(main.PreProcessing, "pre_processing", rebuild)
+
+    response = TestClient(main.app).post("/rebuild", headers=headers)
+
+    assert response.status_code == 401
+    rebuild.assert_not_called()
 
 
 def test_rebuild_get():
@@ -36,12 +58,35 @@ def test_ask_post(monkeypatch):
     result = {"answer": "Un concert ce soir.", "events": []}
     monkeypatch.setattr(main, "rag_ask", Mock(return_value=result))
 
-    response = TestClient(main.app).post("/ask", json={"question": "Quels concerts ce soir ?"})
+    response = TestClient(main.app).post(
+        "/ask",
+        json={"question": "Quels concerts ce soir ?"},
+        headers=API_HEADERS,
+    )
 
     assert response.status_code == 200
     assert set(response.json()) == {"answer", "events"}
     assert isinstance(response.json()["answer"], str)
     assert isinstance(response.json()["events"], list)
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [{}, {"X-API-Key": "invalid-key"}],
+    ids=["missing-key", "invalid-key"],
+)
+def test_ask_rejects_missing_or_invalid_api_key(monkeypatch, headers):
+    rag_ask = Mock()
+    monkeypatch.setattr(main, "rag_ask", rag_ask)
+
+    response = TestClient(main.app).post(
+        "/ask",
+        json={"question": "Quels concerts ce soir ?"},
+        headers=headers,
+    )
+
+    assert response.status_code == 401
+    rag_ask.assert_not_called()
 
 
 def test_ask_get():
@@ -56,7 +101,7 @@ def test_ask_post_without_question(monkeypatch):
 
     monkeypatch.setattr(main, "rag_ask", Mock())
 
-    response = TestClient(main.app).post("/ask", json={})
+    response = TestClient(main.app).post("/ask", json={}, headers=API_HEADERS)
 
     assert response.status_code == 422
 

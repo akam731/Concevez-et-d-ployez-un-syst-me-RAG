@@ -1,8 +1,12 @@
 # Routes de l'API
+import hmac
 import logging
+import os
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, HTTPException, Security
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 
 from processing.preprocessing import PreProcessing
@@ -10,7 +14,28 @@ from utils.rag import ask as rag_ask, load_resources
 
 logger = logging.getLogger(__name__)
 
+load_dotenv()
+
 app = FastAPI()
+
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+def require_internal_api_key(api_key: str | None = Security(api_key_header)) -> None:
+    """Vérifie la clé interne avant d'autoriser les routes protégées."""
+    expected_key = os.getenv("INTERNAL_API_KEY")
+    if not expected_key:
+        logger.error("La variable INTERNAL_API_KEY n'est pas configurée.")
+        raise HTTPException(
+            status_code=500,
+            detail="La clé interne de l'API n'est pas configurée.",
+        )
+
+    if api_key is None or not hmac.compare_digest(api_key, expected_key):
+        raise HTTPException(
+            status_code=401,
+            detail="Clé API manquante ou invalide.",
+        )
 
 
 class AskRequest(BaseModel):
@@ -27,7 +52,8 @@ class AskResponse(BaseModel):
 # POST : Pose la question au système RAG
 @app.post("/ask", response_model=AskResponse,
           name="Pose une question au modèle",
-          description="Récupère la question, et demande une réponse au modèle. Fournis la réponses et les sources.")
+          description="Récupère la question, et demande une réponse au modèle. Fournis la réponses et les sources.",
+          dependencies=[Depends(require_internal_api_key)])
 def ask(request: AskRequest):
     if not request.question.strip():
         raise HTTPException(status_code=422, detail="La question ne peut pas être vide.")
@@ -41,7 +67,8 @@ def ask(request: AskRequest):
 # POST : Régénère la base vectorielle
 @app.post("/rebuild",
           name="Reconstruit la base de données vectorielle",
-          description="Reconstruit la base de données vectorielle et vide le cache du rag. Retourne le nombre d'événements que contient la nouvelle base de données.", )
+          description="Reconstruit la base de données vectorielle et vide le cache du rag. Retourne le nombre d'événements que contient la nouvelle base de données.",
+          dependencies=[Depends(require_internal_api_key)])
 def rebuild():
     try:
         events = PreProcessing().pre_processing()  # Construction de la base

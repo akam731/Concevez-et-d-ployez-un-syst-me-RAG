@@ -1,8 +1,10 @@
 @baseUrl = http://127.0.0.1:8000
+@internalApiKey = REPLACE_WITH_INTERNAL_API_KEY
 
 ### Poser une question au RAG
 POST {{baseUrl}}/ask
 Content-Type: application/json
+X-API-Key: {{internalApiKey}}
 
 {
   "question": "Quels événements culturels sont proposés à Paris ?"
@@ -11,6 +13,7 @@ Content-Type: application/json
 ### Demander le prix d'un événement
 POST {{baseUrl}}/ask
 Content-Type: application/json
+X-API-Key: {{internalApiKey}}
 
 {
   "question": "Combien coûte l'entrée au ciné-concert Vive Kaprálová ?"
@@ -19,6 +22,7 @@ Content-Type: application/json
 ### Demander le lieu d'une exposition
 POST {{baseUrl}}/ask
 Content-Type: application/json
+X-API-Key: {{internalApiKey}}
 
 {
   "question": "Où se tient l'exposition Amazônia. Créations et futurs autochtones ?"
@@ -27,6 +31,7 @@ Content-Type: application/json
 ### Demander la date d'un concert
 POST {{baseUrl}}/ask
 Content-Type: application/json
+X-API-Key: {{internalApiKey}}
 
 {
   "question": "Quand a lieu le concert Coeur Canari de Jann Halexander ?"
@@ -35,6 +40,7 @@ Content-Type: application/json
 ### Demander les conditions d'un atelier
 POST {{baseUrl}}/ask
 Content-Type: application/json
+X-API-Key: {{internalApiKey}}
 
 {
   "question": "L'atelier scolaire La fortification bastionnée est-il gratuit et faut-il s'inscrire ?"
@@ -43,6 +49,7 @@ Content-Type: application/json
 ### Demander les différents tarifs d'un récital
 POST {{baseUrl}}/ask
 Content-Type: application/json
+X-API-Key: {{internalApiKey}}
 
 {
   "question": "Quels sont les tarifs du récital Hommage à Guru M. K. Saroja ?"
@@ -50,6 +57,7 @@ Content-Type: application/json
 
 ### Reconstruire la base vectorielle
 POST {{baseUrl}}/rebuild
+X-API-Key: {{internalApiKey}}
 
 ### Vérifier l'état de l'API
 GET {{baseUrl}}/health
