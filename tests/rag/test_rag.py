@@ -6,7 +6,7 @@ import os
 import sys
 from pathlib import Path
 from statistics import mean
-from time import sleep
+from time import monotonic, sleep
 from types import ModuleType
 
 import pytest
@@ -90,30 +90,42 @@ def test_rag_answers_with_ragas(monkeypatch):
     vertexai_module = ModuleType(old_vertexai_path)
     vertexai_module.ChatVertexAI = ChatVertexAI
     monkeypatch.setitem(sys.modules, old_vertexai_path, vertexai_module)
-    from openai import AsyncOpenAI
+    from openai import APIConnectionError, AsyncOpenAI, InternalServerError, RateLimitError
     from ragas.llms import llm_factory
     from ragas.metrics.collections import ContextPrecision, Faithfulness
 
+    interval = settings.mistral_min_interval_seconds
+    assert interval > 0
+    rag_interval = interval
+    # Trois événements par réponse réduisent le nombre d'appels de précision.
+    retrieval_k = int(os.getenv("RAGAS_TOP_K", "3"))
+    assert retrieval_k > 0
+    # Récupères toutes les questions par défaut, utile pour le débug
+    cases = CASES[:int(os.getenv("RAGAS_CASE_LIMIT", str(len(CASES))))]
+    assert cases, "RAGAS_CASE_LIMIT doit laisser au moins une question."
     samples = []
+    last_answer_at = None
 
     # Parcours de la liste des questions
-    for number, case in enumerate(CASES, start=1):
+    for number, case in enumerate(cases, start=1):
         # Récupération de la question et de la réponse de référence
         question = case["question"]
         reference = case["reference"]
         assert question.strip() and reference.strip(), f"Cas {number} incomplet."
 
-        # Un appel à Mistral peut échouer momentanément pendant cette série de
-        # questions. Réessayer seulement les erreurs temporaires ; si elles
-        # persistent, le test échoue et affiche la réponse d'erreur.
-        for attempt, delay in enumerate((0, 15, 45), start=1):
-            if delay:
-                sleep(delay)
-            result = rag_ask(question)
+        # Test fois au cas ou le rag échouerai
+        for attempt in range(1, 4):
+            if last_answer_at is not None:
+                sleep(max(0, rag_interval - (monotonic() - last_answer_at)))
+            print(f"Question {number}/{len(cases)}, tentative {attempt}", flush=True)
+            result = rag_ask(question, k=retrieval_k)
+            last_answer_at = monotonic()
             if result["events"] or not result["answer"].startswith(
                 ("Impossible de répondre", "Limite d'utilisation API atteinte")
             ):
                 break
+            rag_interval = min(rag_interval * 2, 40)
+
         answer = result["answer"] # Réponse du rag
         contexts = [_context_text(event) for event in result["events"]]
 
@@ -124,21 +136,120 @@ def test_rag_answers_with_ragas(monkeypatch):
         # Met de côté les résultats pour la vérification à suivre
         samples.append((number, question, reference, answer, contexts))
 
-    # Fonction d'évaluation des samples en asynchrone
+    # Chaque métrique Ragas fait plusieurs appels au modèle. On espace donc chaque requête HTTP.
+    class PacedAsyncOpenAI(AsyncOpenAI):
+        def __init__(self):
+            super().__init__(
+                api_key=api_key,
+                base_url="https://api.mistral.ai/v1",
+                max_retries=0,
+                timeout=120,
+            )
+            self._interval = rag_interval
+            self._next_request_at = last_answer_at + self._interval
+            self._pace_lock = asyncio.Lock()
+
+        async def request(self, *args, **kwargs):
+            transient_attempts = 0
+            while True:
+                async with self._pace_lock:
+                    await asyncio.sleep(max(0, self._next_request_at - monotonic()))
+                    self._next_request_at = monotonic() + self._interval
+                try:
+                    completion = await super().request(*args, **kwargs)
+                    # Si le modèle a épuisé max_tokens avant de finir
+                    if any(
+                        choice.finish_reason == "length"
+                        for choice in getattr(completion, "choices", [])
+                    ):
+                        options = args[1] if len(args) > 1 else kwargs.get("options")
+                        body = getattr(options, "json_data", None)
+                        token_field = (
+                            "max_tokens" if isinstance(body, dict) and "max_tokens" in body
+                            else "max_completion_tokens"
+                        )
+                        current_limit = body.get(token_field) if isinstance(body, dict) else None
+                        if isinstance(current_limit, int) and current_limit < 12288:
+                            new_limit = min(current_limit * 2, 12288)
+                            body[token_field] = new_limit
+                            print(
+                                f"Réponse Ragas tronquée : nouvel essai avec {new_limit} tokens.",
+                                flush=True,
+                            )
+                            continue
+                        raise AssertionError(
+                            "Réponse Ragas encore tronquée à 12288 tokens ; "
+                            "réduire la taille des réponses ou des contextes."
+                        )
+                    # On récupère uniquement le bloc text
+                    for choice in getattr(completion, "choices", []):
+                        content = choice.message.content
+                        if isinstance(content, list):
+                            choice.message.content = "".join(
+                                block.get("text", "") for block in content
+                                if isinstance(block, dict) and block.get("type") == "text"
+                            )
+                    return completion
+                except (APIConnectionError, InternalServerError, RateLimitError) as error:
+                    transient_attempts += 1
+                    if transient_attempts == 5:
+                        raise
+                    if isinstance(error, RateLimitError):
+                        self._interval = max(self._interval, 1.25)
+                    # Respecter Retry-After si Mistral le fournit.
+                    response = getattr(error, "response", None)
+                    retry_after = response.headers.get("retry-after") if response else None
+                    try:
+                        retry_after_seconds = float(retry_after) if retry_after else 0
+                    except ValueError:
+                        retry_after_seconds = 0
+                    async with self._pace_lock:
+                        self._next_request_at = max(
+                            self._next_request_at,
+                            monotonic() + self._interval,
+                            monotonic() + retry_after_seconds,
+                            monotonic() + (30 if isinstance(error, RateLimitError) else 0),
+                        )
+                    print(
+                        f"Appel Mistral interrompu ({type(error).__name__}) ; "
+                        f"nouvelle tentative {transient_attempts + 1}/5.",
+                        flush=True,
+                    )
+
+    # Fonction d'évaluation en asynchrone
     async def score_samples():
-        # Tableau des scores
-        faithfulness_scores = []
-        precision_scores = []
-
         # Envoi les requêtes d'évaluation à mistral
-        async with AsyncOpenAI(api_key=api_key, base_url="https://api.mistral.ai/v1") as client:
+        async with PacedAsyncOpenAI() as client:
             # Paramétrage du modèle évaluateur
-            evaluator = llm_factory(settings.llm_model, provider="openai", client=client)
-            faithfulness = Faithfulness(llm=evaluator)
-            context_precision = ContextPrecision(llm=evaluator)
+            faithfulness_evaluator = llm_factory(
+                settings.llm_model,
+                provider="openai",
+                client=client,
+                max_tokens=4096,
+                reasoning_effort="low",
+            )
+            precision_evaluator = llm_factory(
+                settings.llm_model,
+                provider="openai",
+                client=client,
+                max_tokens=1024,
+                reasoning_effort="low",
+            )
+            slots = asyncio.Semaphore(2)
 
-            # Parcours des diférents tests
-            for number, question, reference, answer, contexts in samples:
+            async def score_one(sample):
+                async with slots:
+                    return await score_limited(sample)
+
+            async def score_limited(sample):
+                number, question, reference, answer, contexts = sample
+                print(f"Évaluation Ragas {number}/{len(samples)}", flush=True)
+                faithfulness = Faithfulness(llm=faithfulness_evaluator)
+                context_precision = ContextPrecision(llm=precision_evaluator)
+
+                faithfulness.statement_generator_prompt.examples = []
+                faithfulness.nli_statement_prompt.examples = []
+                context_precision.prompt.examples = []
                 # Calcul des scores
                 faithfulness_score = float((await faithfulness.ascore(
                     user_input=question,
@@ -155,14 +266,25 @@ def test_rag_answers_with_ragas(monkeypatch):
                 assert math.isfinite(faithfulness_score) and 0 <= faithfulness_score <= 1
                 assert math.isfinite(precision_score) and 0 <= precision_score <= 1
 
-                # Sauvegarde des scores
-                faithfulness_scores.append(faithfulness_score)
-                precision_scores.append(precision_score)
-        return faithfulness_scores, precision_scores
+                print(
+                    f"Scores {number}/{len(samples)} : fidélité {faithfulness_score:.2f}, "
+                    f"précision {precision_score:.2f}",
+                    flush=True,
+                )
+                return faithfulness_score, precision_score
+
+            # Deux évaluations maximum en même temps pour économiser le quota
+            scores = await asyncio.gather(*(score_one(sample) for sample in samples))
+        return [score[0] for score in scores], [score[1] for score in scores]
 
     # Éxécution de la fonction définie juste avant
     faithfulness_scores, precision_scores = asyncio.run(score_samples())
 
     # Le test échoue si la qualité moyenne passe sous les seuils choisis.
+    print(
+        f"Moyennes : fidélité {mean(faithfulness_scores):.2f}, "
+        f"précision {mean(precision_scores):.2f}",
+        flush=True,
+    )
     assert mean(faithfulness_scores) >= MIN_MEAN_FAITHFULNESS
     assert mean(precision_scores) >= MIN_MEAN_CONTEXT_PRECISION

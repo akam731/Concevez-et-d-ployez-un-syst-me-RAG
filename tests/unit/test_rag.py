@@ -229,6 +229,7 @@ def test_ask_invokes_model_with_retrieved_events(monkeypatch):
         temperature=rag.llm_temperature,
         top_p=rag.llm_top_p,
         max_tokens=rag.llm_max_tokens,
+        model_kwargs={"reasoning_effort": "low"},
     )
     model.invoke.assert_called_once_with(prompt)
 

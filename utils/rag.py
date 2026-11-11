@@ -159,11 +159,20 @@ def ask(question, k=5, messages=None):
             temperature=llm_temperature,
             top_p=llm_top_p,
             max_tokens=llm_max_tokens,
+            model_kwargs={"reasoning_effort": "low"},
         )
         # Pose la question au model
         response = model.invoke(prompt)
+        content = response.content
+        # Mistral Large 4 renvoie des blocs thinking et text.
+        # Seuls les blocs text constituent la réponse à afficher.
+        if isinstance(content, list):
+            content = "".join(
+                block["text"] for block in content
+                if isinstance(block, dict) and block.get("type") == "text"
+            )
         # Retourne la réponse
-        return {"answer": response.content, "events": results}
+        return {"answer": content, "events": results}
 
     # Erreur API
     except HTTPStatusError as error:
