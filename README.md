@@ -9,86 +9,130 @@ Source des données : [événements publics OpenAgenda](https://public.opendatas
 
 ## État du projet
 
-Le projet est en cours de démarrage. Le système RAG et l'API ne sont pas encore disponibles.
+Le système RAG, le chat Streamlit et l'API REST sont disponibles localement. La conteneurisation et le déploiement restent à réaliser.
 
 ## Étapes du projet
 
 - [X] Étape 1 - Configurez l’environnement
 - [X] Étape 2 - Effectuez le pré-processing des données Open Agenda
 - [X] Étape 3 - Implémentez la base de données vectorielle avec Faiss
-- [X] Étape 4 - Intégrez LanChain pour le système RAG 
-- [ ] Étape 5 - Créez une API pour exposer le système RAG
+- [X] Étape 4 - Intégrez LangChain pour le système RAG
+- [X] Étape 5 - Créez une API pour exposer le système RAG
 - [ ] Étape 6 - Conteneurisez, déployez localement et préparez votre démonstration
 
 ## Arborescence
 
 ```text
 .
-├── .env                           # Clé API et variables locales
-├── .env.demo                      # Exemple de variables d'environnement
-├── .gitignore                     # Fichiers exclus de Git
-├── .venv/                         # Environnement virtuel UV
-├── 1-PreProcessing/               
+├── .github/workflows/
+│       └── tests.yml              # Tests automatiques GitHub Actions
+├── 1-PreProcessing/
 │   ├── 1-extract_events.ipynb     # Extraction et nettoyage des événements
 │   └── 2-embedding.ipynb          # Génération des embeddings
-├── 2-DataBase/                    # Notebook de création de la base FAISS
-│   └── 3-create_database.ipynb
-├── app.py                         # Interface Streamlit du RAG
-├── datas/                         # Données générées localement
-│   ├── events.csv                 # Événements bruts OpenAgenda
-│   ├── events_clean.csv           # Événements filtrés et nettoyés
-│   └── events_embeddings.npy      # Vecteurs des événements
-├── docs/                          # Documentations du projet
-│   └── Fiche auto évaluation.pdf  
-├── main.py                        # Point d'entrée de l'API FastAPI
-├── processing/                    
-│   ├── create_database.py         # Création de la base de données FAISS
-│   ├── embedding.py               # Génération des embeddings
-│   ├── extract_events.py          # Récupération des événements
-│   └── preprocessing.py           # Class regroupant tous les processus
+├── 2-DataBase/
+│   └── 3-create_database.ipynb    # Création de l'index FAISS
+├── datas/
+│   └── faiss_events/
+│       ├── events.faiss            # Index vectoriel
+│       ├── events.json             # Métadonnées des événements
+│       └── manifest.json           # Configuration de l'index
+├── docs/
+│   ├── Fiche auto évaluation.pdf
+│   ├── Rapport technique.docx      # Rapport technique
+│   └── Shema UML.png               # Schema UML du projet
+├── processing/                     # Scripts réutilisables de préparation des données
+│   ├── create_database.py
+│   ├── embedding.py
+│   ├── extract_events.py
+│   └── preprocessing.py            # Enchaînement des étapes pour /rebuild
 ├── tests/
-│   └── unit/                      # Tests unitaires
-│       ├── test_database.py
-│       └── test_preprocessing.py
-├── utils/                         # Fonctions partagés
+│   ├── api.http                    # Exemples de requêtes à l'API
+│   ├── functional/test_api.py      # Tests fonctionels des routes FastAPI
+│   ├── rag/test_rag.py             # Évaluation Ragas des réponses
+│   └── unit/
+│       ├── test_database.py        # Tests unitaires sur la base de données
+│       ├── test_preprocessing.py   # Tests unitaires sur le preprocessing
+│       └── test_rag.py             # Tests unitaires sur le rag
+├── utils/                          # Fonctions et paramètres partagés
 │   ├── database.py
 │   ├── preprocessing.py
-│   ├── rag.py                    
-│   ├── settings.py                # Paramètres du projet
-│   └── system.md                  # Prompt System du chat
+│   ├── rag.py
+│   ├── settings.py
+│   └── system.md                  # Prompt system
+├── .env.demo                      # Exemple de variables d'environnement
+├── .gitignore                     # Fichiers exclus de Git
+├── README.md                      # Documentation principale
+├── app.py                         # Interface de chat Streamlit
+├── main.py                        # API REST FastAPI
 ├── pyproject.toml                 # Configuration et dépendances Python
-├── README.md                      # Documentation principale du projet
 └── uv.lock                        # Versions verrouillées des dépendances
 ```
 
+Les fichiers intermédiaires `events.csv`, `events_clean.csv` et `events_embeddings.npy` sont générés localement dans `datas/` et ne sont pas versionnés.
+
 ## Lancer le projet
 
-Le fichier `pyproject.toml` définit actuellement un environnement Python 3.14 ou plus récent. Les dépendances et les commandes de lancement seront ajoutées au fur et à mesure du développement.
+### Installer les dépendances
+Le projet nécessite Python 3.12 ou plus récent.
 
 Avec `uv` installé, exécutez à la racine du projet :
 
 ```bash
 uv sync
 ```
+
+
+### Discuter avec le RAG
+
+L'interface Streamlit permet de poser des questions au RAG et de consulter les événements utilisés pour répondre.
+
 ```bash
 uv run streamlit run app.py
 ```
 
-La première commande crée l'environnement virtuel et synchronise les dépendances du projet.
+### Lancer l'API REST
+
+Renseignez `MISTRAL_API` et `INTERNAL_API_KEY` dans le fichier `.env`, puis lancez l'API avec Uvicorn :
+
+```bash
+uv run uvicorn main:app --reload
+```
+
+L'API est disponible sur `http://127.0.0.1:8000` et sa documentation interactive sur `http://127.0.0.1:8000/docs`.
+
+| Méthode | Route | Rôle | Clé interne requise |
+| --- | --- | --- | --- |
+| POST | `/ask` | Pose une question au RAG et retourne la réponse et les événements sources. | Oui |
+| POST | `/rebuild` | Reconstruit la base vectorielle FAISS. | Oui |
+| GET, POST | `/health` | Vérifie l'état de l'api. | Non |
+| GET, POST | `/metadata` | Retourne les informations et les routes de l'API. | Non |
+
+Pour `/ask`, envoyez un JSON contenant `question`. Pour les deux routes protégées, transmettez la clé interne dans l'en-tête `X-API-Key`.
+
 
 ## Tests et couverture
 
-Depuis la racine du projet, lancer les tests et générer le rapport de couverture HTML :
+Lancer les tests et générer le rapport de couverture HTML :
 
 ```bash
 uv run pytest -v
 ```
 
-Ouvrir le rapport de couverture sous Windows :
+> Des tests unitaires et fonctionnels sont lancés pour tester le code. Et des tests RAGAS sont lancés pour tester le RAG
+
+Ouvrir le rapport de couverture :
 
 ```bash
-Start-Process .\htmlcov\index.html
+Start-Process .\tests\htmlcov\index.html
 ```
 
-Les tests sont dans `tests/unit/`. Les appels à OpenAgenda et Mistral sont simulés.
-Le rapport `htmlcov/index.html` mesure la couverture du code Python dans `utils/`.
+Les tests sont répartis dans `tests/unit/`, `tests/functional/` et `tests/rag/`.
+Le rapport `tests/htmlcov/index.html` mesure la couverture du code Python dans `utils/`. Les tests échouent si elle est inférieure à 90 %.
+
+## Documentation
+
+| Document | Contenu |
+| --- | --- |
+| [Rapport technique](docs/Rapport%20technique.docx) | Présentation de la conception, de l'implémentation et de l'évaluation du projet. |
+| [Schéma d'architecture](docs/Shema%20UML.png) | Vue d'ensemble des composants et des échanges du système RAG. |
+| [Fiche d'autoévaluation](docs/Fiche%20auto%20%C3%A9valuation.pdf) | Critères d'évaluation du projet. |
