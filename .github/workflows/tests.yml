@@ -1,0 +1,30 @@
+# Nom du workflow
+name: CI
+
+# Déclencheurs : push sur master, develop et les branches feature/*
+on:
+  push:
+    branches: ["master", "develop", "feature/**"]
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+
+    steps:
+      # Récupère le code du dépôt
+      - uses: actions/checkout@v4
+
+      # Installe uv et Python 3.13
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+
+      # Installe les dépendances à partir du lockfile
+      - run: uv sync --frozen
+
+      # Exécute la suite de tests
+      - run: uv run pytest -v
+        env:
+          # On récupère la variable environment contenant la clef api mistral pour les tests RAGAS
+          MISTRAL_API: ${{ secrets.MISTRAL_API }}

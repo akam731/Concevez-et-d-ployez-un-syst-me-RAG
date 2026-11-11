@@ -1,0 +1,10 @@
+{
+  "model": "mistral-embed",
+  "events": 11234,
+  "dimension": 1024,
+  "index_type": "IndexFlatIP",
+  "metric": "cosine",
+  "unit": "event",
+  "source_csv": "events_clean.csv",
+  "source_embeddings": "events_embeddings.npy"
+}
